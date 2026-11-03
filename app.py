@@ -1,11 +1,21 @@
 from __future__ import annotations
 
 import os
+from io import BytesIO
+from pathlib import Path
 
 import pandas as pd
 import plotly.graph_objects as go
 import requests
 import streamlit as st
+import yaml
+
+from dcopt.io import data_quality_report, load_datasets
+from dcopt.upload_analysis import (
+    analyze_uploaded,
+    clean_dataset,
+    suggest_mappings,
+)
 
 
 DEFAULT_API = os.getenv("DCOPT_API_URL", "http://localhost:8000")
@@ -46,22 +56,26 @@ def api_get(path: str, timeout: int = 30):
 
 try:
     api_get("/api/health")
-except requests.RequestException:
-    st.error("FastAPI backend is unavailable. Start it with `uvicorn api:app --port 8000`.")
-    st.stop()
+    backend_available = True
+except (requests.RequestException, requests.HTTPError):
+    backend_available = False
+    st.sidebar.caption("Running upload analysis directly in Streamlit Cloud")
 
 st.title("AI-Optimized DC Parametric Test-Time Reduction")
 
 if page == "Overview":
-    config_response = api_get("/api/config")
-    config = config_response.json()
+    config_path = Path("config.yaml")
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("DPPM budget", config["dppm_budget"])
     col2.metric("Target reduction", f"{config['target_reduction_pct']}%")
     col3.metric("Train lots", len(config["train_lots"]))
     col4.metric("Holdout lots", len(config["holdout_lots"]))
 
-    quality = api_get("/api/data/quality").json()
+    if backend_available:
+        quality = api_get("/api/data/quality").json()
+    else:
+        quality = data_quality_report(load_datasets(config_path))
     st.subheader("Dataset overview")
     st.dataframe(
         pd.DataFrame([
@@ -89,16 +103,36 @@ elif page == "Upload & Analyze":
             or st.session_state.get("upload_response") is None
         ):
             with st.spinner("Reading and validating uploaded dataset..."):
-                response = requests.post(
-                    f"{DEFAULT_API}/api/upload",
-                    files={"file": (uploaded.name, uploaded.getvalue(), uploaded.type)},
-                    timeout=120,
-                )
-                if response.ok:
-                    st.session_state.upload_response = response.json()
-                    st.session_state.uploaded_filename = uploaded.name
+                if backend_available:
+                    response = requests.post(
+                        f"{DEFAULT_API}/api/upload",
+                        files={"file": (uploaded.name, uploaded.getvalue(), uploaded.type)},
+                        timeout=120,
+                    )
+                    if response.ok:
+                        st.session_state.upload_response = response.json()
                 else:
-                    st.error(response.json().get("detail", "Dataset upload failed"))
+                    try:
+                        suffix = Path(uploaded.name).suffix.lower()
+                        if suffix == ".csv":
+                            frame = pd.read_csv(BytesIO(uploaded.getvalue()))
+                        elif suffix in {".xlsx", ".xls"}:
+                            frame = pd.read_excel(BytesIO(uploaded.getvalue()))
+                        else:
+                            raise ValueError("Unsupported file format")
+                        cleaned, cleaning = clean_dataset(frame)
+                        st.session_state.upload_response = {
+                            "upload_id": None,
+                            "filename": uploaded.name,
+                            "columns": cleaned.columns.tolist(),
+                            "preview": cleaned.head(20).fillna("").to_dict(orient="records"),
+                            "cleaning": cleaning,
+                            "suggested_mappings": suggest_mappings(frame),
+                        }
+                        st.session_state.uploaded_frame = cleaned
+                    except (ValueError, pd.errors.ParserError) as exc:
+                        st.error(f"Unable to read dataset: {exc}")
+                st.session_state.uploaded_filename = uploaded.name
 
         upload = st.session_state.get("upload_response")
         if upload:
@@ -146,20 +180,32 @@ elif page == "Upload & Analyze":
                 st.warning("Missing required mapped parameters: " + ", ".join(missing))
 
             if st.button("Analyze Dataset", type="primary", use_container_width=True):
-                analysis_response = requests.post(
-                    f"{DEFAULT_API}/api/upload/analyze",
-                    json={
-                        "upload_id": upload["upload_id"],
-                        "mappings": mappings,
-                        "label_column": label_column,
-                    },
-                    timeout=300,
-                )
-                if analysis_response.ok:
-                    st.session_state.dynamic_analysis = analysis_response.json()
-                    st.success("Dynamic analysis completed")
+                if backend_available:
+                    analysis_response = requests.post(
+                        f"{DEFAULT_API}/api/upload/analyze",
+                        json={
+                            "upload_id": upload["upload_id"],
+                            "mappings": mappings,
+                            "label_column": label_column,
+                        },
+                        timeout=300,
+                    )
+                    if analysis_response.ok:
+                        st.session_state.dynamic_analysis = analysis_response.json()
                 else:
-                    st.error(analysis_response.json().get("detail", "Analysis failed"))
+                    try:
+                        result = analyze_uploaded(
+                            st.session_state.uploaded_frame,
+                            mappings,
+                            label_column,
+                        )
+                        processed = result.pop("processed_dataset")
+                        st.session_state.processed_upload = processed
+                        st.session_state.dynamic_analysis = result
+                    except Exception as exc:
+                        st.error(f"Analysis failed: {exc}")
+                        st.stop()
+                st.success("Dynamic analysis completed")
 
     analysis = st.session_state.get("dynamic_analysis")
     if analysis:
@@ -263,14 +309,20 @@ elif page == "Upload & Analyze":
             st.plotly_chart(fig, use_container_width=True)
 
         st.subheader("Download results")
-        download_response = requests.get(
-            f"{DEFAULT_API}{analysis['processed_download']}",
-            timeout=120,
-        )
-        if download_response.ok:
+        if backend_available and analysis.get("processed_download"):
+            download_response = requests.get(
+                f"{DEFAULT_API}{analysis['processed_download']}",
+                timeout=120,
+            )
+            processed_download = download_response.content if download_response.ok else None
+        else:
+            processed = st.session_state.get("processed_upload")
+            processed_download = processed.to_csv(index=False).encode("utf-8") if processed is not None else None
+
+        if processed_download:
             st.download_button(
                 "Download processed dataset",
-                download_response.content,
+                processed_download,
                 file_name="processed_dataset.csv",
                 mime="text/csv",
             )
@@ -316,7 +368,10 @@ elif page == "Upload & Analyze":
         )
 
 elif page == "Data quality":
-    quality = api_get("/api/data/quality").json()
+    if backend_available:
+        quality = api_get("/api/data/quality").json()
+    else:
+        quality = data_quality_report(load_datasets(Path("config.yaml")))
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Rows")
@@ -344,7 +399,14 @@ elif page == "Data quality":
     })
 
 else:
-    stages = api_get("/api/results").json()["stages"]
+    results_root = Path("results")
+    if backend_available:
+        stages = api_get("/api/results").json()["stages"]
+    else:
+        stages = sorted(
+            directory.name for directory in results_root.iterdir()
+            if directory.is_dir() and any(directory.iterdir())
+        ) if results_root.exists() else []
     if not stages:
         st.info("No existing project result artifacts are available.")
         st.stop()
@@ -353,12 +415,23 @@ else:
         stages,
         format_func=lambda value: STAGE_NAMES.get(value, value),
     )
-    files = api_get(f"/api/results/{stage}").json()["files"]
+    if backend_available:
+        files = api_get(f"/api/results/{stage}").json()["files"]
+    else:
+        stage_dir = results_root / stage
+        files = sorted(
+            item.name for item in stage_dir.iterdir()
+            if item.is_file() and item.suffix.lower() in {".csv", ".md", ".png"}
+        ) if stage_dir.exists() else []
     image_files = [name for name in files if name.endswith(".png")]
 
     summary_name = "summary.md"
     if summary_name in files:
-        summary = api_get(f"/api/results/{stage}/{summary_name}").json()["content"]
+        summary = (
+            api_get(f"/api/results/{stage}/{summary_name}").json()["content"]
+            if backend_available
+            else (results_root / stage / summary_name).read_text(encoding="utf-8")
+        )
         st.subheader("Output summary")
         st.markdown(summary)
 
@@ -367,17 +440,32 @@ else:
         chart_columns = st.columns(min(2, len(image_files)))
         for index, image_name in enumerate(image_files):
             column = chart_columns[index % len(chart_columns)]
-            image_response = api_get(f"/api/results/{stage}/{image_name}")
-            column.image(image_response.content, caption=image_name, use_container_width=True)
+            if backend_available:
+                image_response = api_get(f"/api/results/{stage}/{image_name}")
+                image_bytes = image_response.content
+            else:
+                image_bytes = (results_root / stage / image_name).read_bytes()
+            column.image(image_bytes, caption=image_name, use_container_width=True)
 
     st.subheader("Browse generated artifacts")
     artifact = st.selectbox("Artifact", files)
-    response = api_get(f"/api/results/{stage}/{artifact}")
     if artifact.endswith(".csv"):
-        payload = response.json()
-        st.caption(f"Showing {len(payload['rows'])} of {payload['total_rows']} rows")
-        st.dataframe(pd.DataFrame(payload["rows"]), hide_index=True, use_container_width=True)
+        if backend_available:
+            payload = api_get(f"/api/results/{stage}/{artifact}").json()
+            frame = pd.DataFrame(payload["rows"])
+            st.caption(f"Showing {len(payload['rows'])} of {payload['total_rows']} rows")
+        else:
+            frame = pd.read_csv(results_root / stage / artifact)
+        st.dataframe(frame, hide_index=True, use_container_width=True)
     elif artifact.endswith(".md"):
-        st.markdown(response.json()["content"])
+        if backend_available:
+            markdown = api_get(f"/api/results/{stage}/{artifact}").json()["content"]
+        else:
+            markdown = (results_root / stage / artifact).read_text(encoding="utf-8")
+        st.markdown(markdown)
     else:
-        st.image(response.content, use_column_width=True)
+        if backend_available:
+            image = api_get(f"/api/results/{stage}/{artifact}").content
+        else:
+            image = (results_root / stage / artifact).read_bytes()
+        st.image(image, use_container_width=True)

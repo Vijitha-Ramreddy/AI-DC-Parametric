@@ -28,6 +28,10 @@ streamlit run app.py
 The Streamlit UI defaults to `http://localhost:8000`. Upload and analyze a CSV
 or Excel dataset from **Upload & Analyze**.
 
+For Streamlit Community Cloud, no local FastAPI process is available. Set
+`DCOPT_API_URL` only when a public FastAPI deployment is also used; otherwise
+uploaded-file analysis runs directly in Streamlit.
+
 ## Rules
 
 - Split data by lot; never by device.
