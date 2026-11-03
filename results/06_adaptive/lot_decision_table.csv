@@ -1,0 +1,13 @@
+lot,temp_C,wafer_count,max_spc_z,violated_tests,spc_drift_detected,expected_drift,expected_hot,detection_correct,flow_decision,decision_reason
+L001,25.0,5,0.47081615418526074,,False,False,False,True,REDUCED,SPC stable
+L002,25.0,5,0.3562614146571097,,False,False,False,True,REDUCED,SPC stable
+L003,25.0,5,1.012261298366637,IDDQ_V1;IDD_STATIC,True,True,False,True,FULL,SPC drift
+L004,90.0,5,0.09588350829828722,,False,False,True,True,REDUCED,SPC stable
+L005,25.0,5,0.16192590740262558,,False,False,False,True,REDUCED,SPC stable
+L006,25.0,5,0.5984688589237833,,False,False,False,True,REDUCED,SPC stable
+L007,25.0,5,0.11850501590311481,,False,False,False,True,REDUCED,SPC stable
+L008,90.0,5,0.7794665020389834,IDD_STATIC,True,True,True,True,FULL,SPC drift
+L009,25.0,5,0.0814836420403712,,False,False,False,True,REDUCED,SPC stable
+L010,25.0,5,0.3098180554048024,,False,False,False,True,REDUCED,SPC stable
+L011,25.0,5,0.26038258168366574,,False,False,False,True,REDUCED,SPC stable
+L012,90.0,5,0.19319004889785624,,False,False,True,True,REDUCED,SPC stable

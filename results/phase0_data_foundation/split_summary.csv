@@ -1,0 +1,3 @@
+split,lots,devices
+train,"L001, L002, L003, L004, L005, L006, L007, L008",17640
+test,"L009, L010, L011, L012",8820

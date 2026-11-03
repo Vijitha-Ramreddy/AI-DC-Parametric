@@ -1,0 +1,15 @@
+matplotlib
+numpy
+pandas
+PyYAML
+scikit-learn
+scipy
+seaborn
+pytest
+fastapi
+uvicorn[standard]
+streamlit
+requests
+plotly
+openpyxl
+python-multipart

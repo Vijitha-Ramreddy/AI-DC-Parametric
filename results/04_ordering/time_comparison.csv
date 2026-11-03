@@ -1,0 +1,7 @@
+flow,population,mean_dc_time_ms,median_dc_time_ms,devices
+original,all,402.1241496598639,405.0,8820
+ranked,all,401.7901360544218,405.0,8820
+original,passing,405.0,405.0,8715
+ranked,passing,405.0,405.0,8715
+original,failing,163.42857142857142,166.0,105
+ranked,failing,135.37142857142857,172.0,105

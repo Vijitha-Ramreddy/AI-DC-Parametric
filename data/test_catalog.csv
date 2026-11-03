@@ -1,0 +1,17 @@
+test,group,unit,lo_limit,hi_limit,test_time_ms
+CONT_VDIODE,Continuity,V,-0.9,-0.4,18.0
+IIL_A,Leakage,nA,-1000.0,1000.0,22.0
+IIL_B,Leakage,nA,-1000.0,1000.0,22.0
+IIH_A,Leakage,nA,-1000.0,1000.0,22.0
+IIH_B,Leakage,nA,-1000.0,1000.0,22.0
+VOH,Output,V,2.4,,15.0
+VOL,Output,V,,0.4,15.0
+IDDQ_V1,IDDQ,uA,,5.0,30.0
+IDDQ_V2,IDDQ,uA,,5.0,30.0
+IDDQ_V3,IDDQ,uA,,5.0,30.0
+IDDQ_V4,IDDQ,uA,,5.0,30.0
+IDDQ_V5,IDDQ,uA,,5.0,30.0
+IDD_STATIC,Supply,mA,,12.0,25.0
+VIL,Threshold,V,0.8,,35.0
+VIH,Threshold,V,,2.0,35.0
+IOS,Output,mA,20.0,120.0,24.0

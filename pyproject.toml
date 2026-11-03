@@ -1,0 +1,24 @@
+[project]
+name = "dcopt"
+version = "0.1.0"
+description = "AI-optimized DC parametric test-time reduction"
+requires-python = ">=3.11"
+dependencies = [
+  "matplotlib",
+  "numpy",
+  "pandas",
+  "PyYAML",
+  "scikit-learn",
+  "scipy",
+  "fastapi",
+  "uvicorn[standard]",
+  "streamlit",
+  "requests",
+  "plotly",
+  "openpyxl",
+  "python-multipart",
+]
+
+
+[tool.pytest.ini_options]
+python_files = ["test_*.py"]

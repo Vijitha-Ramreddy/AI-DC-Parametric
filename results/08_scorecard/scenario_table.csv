@@ -1,0 +1,14 @@
+scenario,techniques,mean_dc_time_ms,reduction_pct,test_cost_per_device,fallback_rate_pct,model_skipped_escape_count,escape_dppm_upper_bound,pat_catches,false_fail_overkill,meets_target_reduction,meets_dppm_budget,yield_change_false_fail_overkill
+cumulative_settling,settling,383.209375,5.380401234567901,0.0,0.0,0,339.6521852102029,0,0,False,False,0
+cumulative_ordering,settling+ordering,382.8753613945579,5.462873729738796,0.0,0.0,0,339.6521852102029,0,0,False,False,0
+cumulative_static,settling+ordering+static,272.8753613945579,32.62336755689929,0.0,0.0,0,339.6521852102029,0,0,True,False,0
+cumulative_predictive,settling+ordering+static+predictive,107.7209396258504,73.40223712941965,0.0,0.0,4,1037.8139485983645,0,0,True,False,0
+cumulative_adaptive,settling+ordering+static+predictive+adaptive,223.55408792825529,44.801459770801166,0.0,42.09750566893425,4,1037.8139485983645,0,0,True,False,0
+cumulative_pat,settling+ordering+static+predictive+adaptive+pat,223.55408792825529,44.801459770801166,0.0,42.09750566893425,4,1037.8139485983645,14,0,True,False,0
+settling_alone,settling,383.209375,5.380401234567901,0.0,0.0,0,339.6521852102029,0,0,False,False,0
+ordering_alone,ordering,404.6659863945579,0.08247249517089474,0.0,0.0,0,339.6521852102029,0,0,False,False,0
+static_alone,static,295.0,27.160493827160494,0.0,0.0,0,339.6521852102029,0,0,False,False,0
+predictive_alone,predictive,239.8455782312925,40.77886957252037,0.0,0.0,4,1037.8139485983645,0,0,True,False,0
+adaptive_alone,adaptive,245.6787265336974,39.33858604106237,0.0,42.09750566893425,0,339.6521852102029,0,0,True,False,0
+pat_alone,pat,405.0,0.0,0.0,0.0,0,339.6521852102029,14,0,False,False,0
+combined,settling+ordering+static+predictive+adaptive+pat,223.55408792825526,44.80145977080117,0.0,42.09750566893425,4,1037.8139485983645,14,0,True,False,0

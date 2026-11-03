@@ -1,0 +1,70 @@
+seed: 2026
+train_lots: [L001, L002, L003, L004, L005, L006, L007, L008]
+holdout_lots: [L009, L010, L011, L012]
+
+# Escape-risk and optimization gates
+dppm_budget: 50
+confidence: 0.95
+
+# Measurement-efficiency defaults
+baseline_wait_ms: 5.0
+baseline_samples: 16
+gage_bias_limit_pct_of_tolerance: 5
+noise_limit_pct_of_tolerance: 10
+settling_margin_pct: 20
+settling_overhead_fraction: 0.5
+
+# Coverage-reduction and predictive defaults
+sampling_rates: [0.5, 0.2, 0.05]
+conformal_alpha: 0.05
+limit_margin_pct: 10
+wafer_zone_radius_threshold: 8.0
+adaptive_initial_devices: 50
+adaptive_spc_z_limit: 0.7
+adaptive_edge_radius: 0.8
+pat_max_flag_pct: 0.3
+full_flow_sample_rate: 0.05
+target_reduction_pct: 30
+tester_cost_per_sec: null
+keep_relay_groups_together: false
+
+# Combined replay order and waterfall order
+simulator_order: [settling, ordering, static, predictive, adaptive, pat]
+
+# Monitoring rollback controls
+monitoring_psi_limit: 0.25
+monitoring_coverage_drop: 0.03
+monitoring_manual_reenable: []
+
+paths:
+  data_dir: data
+  results_dir: results
+  results: dc_test_results.csv
+  catalog: test_catalog.csv
+  settling_sweep: settling_sweep.csv
+
+splits:
+  mode: fixed_lots
+  train_lots: [L001, L002, L003, L004, L005, L006, L007, L008]
+  test_lots: [L009, L010, L011, L012]
+  leave_one_lot_out: false
+
+validation:
+  expect_unique_ecid: true
+  forbidden_model_feature: is_latent_defect_truth
+  required_result_columns:
+    - ecid
+    - lot
+    - wafer
+    - tester
+    - site
+    - temp_C
+    - sort_pass
+    - hard_bin
+    - dc_test_time_ms
+    - is_latent_defect_truth
+  numeric_missing_rate_warn: 0.05
+  plotted_lots: 12
+
+output:
+  step_name: phase0_data_foundation

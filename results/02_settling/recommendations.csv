@@ -1,0 +1,17 @@
+test,wait_ms,n_samples,wait_with_margin_ms,status,catalog_time_ms,recommended_time_ms,time_saved_ms,time_saved_pct,dominant_temperature_C
+CONT_VDIODE,5.0,16,5.0,baseline_fallback_no_feasible_setting,18.0,18.0,0.0,0.0,90
+IIL_A,2.0,1,2.4,configured,22.0,13.74375,8.25625,37.528409090909086,90
+IIL_B,5.0,16,5.0,baseline_fallback_no_feasible_setting,22.0,22.0,0.0,0.0,90
+IIH_A,5.0,16,5.0,baseline_fallback_no_feasible_setting,22.0,22.0,0.0,0.0,90
+IIH_B,5.0,16,5.0,baseline_fallback_no_feasible_setting,22.0,22.0,0.0,0.0,90
+VOH,0.5,8,0.6,configured,15.0,9.975,5.025,33.5,90
+VOL,5.0,16,5.0,baseline_fallback_no_feasible_setting,15.0,15.0,0.0,0.0,90
+IDDQ_V1,5.0,16,5.0,baseline_fallback_no_feasible_setting,30.0,30.0,0.0,0.0,90
+IDDQ_V2,5.0,16,5.0,baseline_fallback_no_feasible_setting,30.0,30.0,0.0,0.0,90
+IDDQ_V3,5.0,16,5.0,baseline_fallback_no_feasible_setting,30.0,30.0,0.0,0.0,90
+IDDQ_V4,5.0,16,5.0,baseline_fallback_no_feasible_setting,30.0,30.0,0.0,0.0,90
+IDDQ_V5,5.0,16,5.0,baseline_fallback_no_feasible_setting,30.0,30.0,0.0,0.0,90
+IDD_STATIC,3.0,1,3.5999999999999996,configured,25.0,16.490625,8.509374999999999,34.037499999999994,90
+VIL,5.0,16,5.0,baseline_fallback_no_feasible_setting,35.0,35.0,0.0,0.0,90
+VIH,5.0,16,5.0,baseline_fallback_no_feasible_setting,35.0,35.0,0.0,0.0,90
+IOS,5.0,16,5.0,baseline_fallback_no_feasible_setting,24.0,24.0,0.0,0.0,90
