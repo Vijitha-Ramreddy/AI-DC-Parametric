@@ -39,13 +39,23 @@ STAGE_NAMES = {
     "08_scorecard": "Optimization Scorecard",
     "09_monitoring": "Monitoring",
 }
+HIDDEN_ARTIFACTS = {
+    "lot_dc_time.png",
+    "measurement_missing_rates.csv",
+    "settling_summary.csv",
+    "split_summary.csv",
+}
+HIDDEN_RESULT_STAGES = {
+    "uploads",
+    "02_settling",
+}
 
 st.set_page_config(page_title="DC Test-Time Optimizer", layout="wide")
 
 with st.sidebar:
     st.title("DC Optimizer")
     st.divider()
-    page = st.radio("View", ["Overview", "Upload & Analyze", "Data quality", "Artifacts"])
+    page = st.radio("View", ["Overview", "Data quality", "Artifacts"])
 
 
 def api_get(path: str, timeout: int = 30):
@@ -66,29 +76,92 @@ st.title("AI-Optimized DC Parametric Test-Time Reduction")
 if page == "Overview":
     config_path = Path("config.yaml")
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("DPPM budget", config["dppm_budget"])
-    col2.metric("Target reduction", f"{config['target_reduction_pct']}%")
-    col3.metric("Train lots", len(config["train_lots"]))
-    col4.metric("Holdout lots", len(config["holdout_lots"]))
+    results_root = Path("results")
+    scenarios = pd.read_csv(results_root / "08_scorecard/scenario_table.csv")
 
-    if backend_available:
-        quality = api_get("/api/data/quality").json()
-    else:
-        quality = data_quality_report(load_datasets(config_path))
-    st.subheader("Dataset overview")
-    st.dataframe(
-        pd.DataFrame([
-            {"Dataset": name, "Rows": rows}
-            for name, rows in quality["row_counts"].items()
-        ]),
-        hide_index=True,
-        use_container_width=True,
-    )
+    def scenario_value(name: str) -> float:
+        return float(scenarios.loc[
+            scenarios["scenario"] == f"{name}_alone", "reduction_pct"
+        ].iloc[0])
+
+    settling_tests = pd.read_csv(results_root / "02_settling/recommendations.csv")
+    settling_tests = settling_tests.loc[
+        settling_tests["status"] == "configured", "test"
+    ].tolist()
+
+    static_tests = pd.read_csv(results_root / "03_static/decision_table.csv")
+    removed_tests = static_tests.loc[
+        static_tests["decision"] == "REMOVE", "test"
+    ].tolist()
+
+    predictive_tests = pd.read_csv(results_root / "05_predictive/metrics.csv")
+    predictive_tests = predictive_tests.loc[
+        (predictive_tests["dimension"] == "overall")
+        & (predictive_tests["level"] == "overall"),
+        "target",
+    ].drop_duplicates().tolist()
+
+    adaptive_lots = pd.read_csv(results_root / "06_adaptive/lot_decision_table.csv")
+    adaptive_tests = sorted({
+        test.strip()
+        for tests in adaptive_lots["violated_tests"].dropna()
+        for test in str(tests).split(";")
+        if test.strip()
+    })
+
+    combined = scenarios.loc[
+        scenarios["scenario"] == "combined"
+    ].iloc[0]
     st.caption(
-        "Lots: " + ", ".join(quality["lots"])
-        + " | Testers: " + ", ".join(quality["testers"])
+        "Synthetic DC parametric testing project focused on reducing test time "
+        "while preserving measurement quality and escape risk."
     )
+    project_col1, project_col2, project_col3 = st.columns(3)
+    project_col1.metric("DC tests", len(pd.read_csv(results_root.parent / "data/test_catalog.csv")))
+    project_col2.metric("Lots analyzed", len(config["train_lots"]) + len(config["holdout_lots"]))
+    project_col3.metric("Target reduction", f"{config['target_reduction_pct']}%")
+    st.metric(
+        "Combined reduction",
+        f"{combined['reduction_pct']:.1f}%",
+        help=f"Target: {config['target_reduction_pct']}%; "
+             f"{combined['mean_dc_time_ms']:.1f} ms/device",
+    )
+
+    techniques = [
+        (
+            "Settling",
+            scenario_value("settling"),
+            "Optimized wait time",
+            settling_tests,
+        ),
+        (
+            "Static removal",
+            scenario_value("static"),
+            "Low-value tests removed",
+            removed_tests,
+        ),
+        (
+            "Predictive",
+            scenario_value("predictive"),
+            "Measured parameters predicted",
+            predictive_tests,
+        ),
+        (
+            "Adaptive",
+            scenario_value("adaptive"),
+            "Drift tests monitored",
+            adaptive_tests,
+        ),
+    ]
+
+    columns = st.columns(2)
+    for index, (name, reduction, description, tests) in enumerate(techniques):
+        with columns[index % 2]:
+            with st.container(border=True):
+                st.subheader(name)
+                st.metric("Time reduction", f"{reduction:.1f}%")
+                st.caption(description)
+                st.write(", ".join(tests) if tests else "No test list available")
 
 elif page == "Upload & Analyze":
     st.header("Upload and Analyze Dataset")
@@ -407,6 +480,7 @@ else:
             directory.name for directory in results_root.iterdir()
             if directory.is_dir() and any(directory.iterdir())
         ) if results_root.exists() else []
+    stages = [name for name in stages if name not in HIDDEN_RESULT_STAGES]
     if not stages:
         st.info("No existing project result artifacts are available.")
         st.stop()
@@ -423,6 +497,7 @@ else:
             item.name for item in stage_dir.iterdir()
             if item.is_file() and item.suffix.lower() in {".csv", ".md", ".png"}
         ) if stage_dir.exists() else []
+    files = [name for name in files if name not in HIDDEN_ARTIFACTS]
     image_files = [name for name in files if name.endswith(".png")]
 
     summary_name = "summary.md"
@@ -446,26 +521,3 @@ else:
             else:
                 image_bytes = (results_root / stage / image_name).read_bytes()
             column.image(image_bytes, caption=image_name, use_container_width=True)
-
-    st.subheader("Browse generated artifacts")
-    artifact = st.selectbox("Artifact", files)
-    if artifact.endswith(".csv"):
-        if backend_available:
-            payload = api_get(f"/api/results/{stage}/{artifact}").json()
-            frame = pd.DataFrame(payload["rows"])
-            st.caption(f"Showing {len(payload['rows'])} of {payload['total_rows']} rows")
-        else:
-            frame = pd.read_csv(results_root / stage / artifact)
-        st.dataframe(frame, hide_index=True, use_container_width=True)
-    elif artifact.endswith(".md"):
-        if backend_available:
-            markdown = api_get(f"/api/results/{stage}/{artifact}").json()["content"]
-        else:
-            markdown = (results_root / stage / artifact).read_text(encoding="utf-8")
-        st.markdown(markdown)
-    else:
-        if backend_available:
-            image = api_get(f"/api/results/{stage}/{artifact}").content
-        else:
-            image = (results_root / stage / artifact).read_bytes()
-        st.image(image, use_container_width=True)
